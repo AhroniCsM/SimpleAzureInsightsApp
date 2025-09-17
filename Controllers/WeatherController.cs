@@ -77,6 +77,74 @@ public class WeatherController : ControllerBase
         }
     }
 
+    [HttpGet("status")]
+    public IActionResult GetStatus()
+    {
+        using var activity = Activity.StartActivity("GetStatus");
+        activity?.SetTag("operation", "get_status");
+        activity?.SetTag("controller", "WeatherController");
+
+        _logger.LogInformation("Application status requested");
+
+        var status = new
+        {
+            Application = "SimpleAzureInsightsApp",
+            Status = "Running",
+            Timestamp = DateTime.UtcNow,
+            Version = "1.0.0",
+            Environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production",
+            MachineName = Environment.MachineName,
+            ProcessId = Environment.ProcessId
+        };
+
+        activity?.SetTag("status", "healthy");
+        activity?.SetTag("machine_name", Environment.MachineName);
+
+        _logger.LogInformation("Application status: {Status}", status.Status);
+
+        return Ok(status);
+    }
+
+    [HttpPost("generate-traces")]
+    public async Task<IActionResult> GenerateTraces()
+    {
+        using var activity = Activity.StartActivity("GenerateTraces");
+        activity?.SetTag("operation", "generate_traces");
+        activity?.SetTag("controller", "WeatherController");
+
+        _logger.LogInformation("Manual trace generation requested");
+
+        try
+        {
+            await _traceService.GenerateSampleTraces();
+
+            // Generate additional traces
+            for (int i = 0; i < 5; i++)
+            {
+                using var traceActivity = Activity.StartActivity($"ManualTrace_{i}");
+                traceActivity?.SetTag("trace_number", i.ToString());
+                traceActivity?.SetTag("source", "manual_request");
+
+                _logger.LogInformation("Generated manual trace {TraceNumber}", i);
+
+                // Simulate some work
+                await Task.Delay(100);
+            }
+
+            _logger.LogInformation("Manual trace generation completed successfully");
+            activity?.SetTag("traces_generated", "5");
+
+            return Ok(new { message = "Traces generated successfully", count = 5, timestamp = DateTime.UtcNow });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred during manual trace generation");
+            activity?.SetTag("error", true);
+            activity?.SetTag("error_message", ex.Message);
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
+
     private static string GetRandomSummary()
     {
         var summaries = new[]

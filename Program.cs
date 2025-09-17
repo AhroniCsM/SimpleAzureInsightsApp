@@ -17,6 +17,9 @@ builder.Services.AddApplicationInsightsTelemetry();
 // Add custom service for generating traces
 builder.Services.AddScoped<ITraceService, TraceService>();
 
+// Add background service for continuous trace generation
+builder.Services.AddHostedService<BackgroundTraceService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
